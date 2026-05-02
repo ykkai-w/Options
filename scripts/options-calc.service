@@ -1,0 +1,25 @@
+[Unit]
+Description=options.dmrml.cn — Options Strategy Visualizer (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/options-calc
+Environment=PATH=/home/ubuntu/options-calc/venv/bin:/usr/bin:/bin
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/ubuntu/options-calc/venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/ubuntu/options-calc/logs/uvicorn.log
+StandardError=append:/home/ubuntu/options-calc/logs/uvicorn.err.log
+
+# 安全加固
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/options-calc
+
+[Install]
+WantedBy=multi-user.target

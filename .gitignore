@@ -1,0 +1,49 @@
+# 主站代码本地参考目录,不属于本仓库
+.mainsite-readonly/
+
+# 运行时持久化数据(包含用户密码哈希、签名 cookie 密钥、保存的策略等敏感内容)
+data/
+logs/
+*.db
+*.sqlite
+*.sqlite3
+*.session_key
+
+# 环境变量与密钥
+.env
+.env.*
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# 编辑器 / 系统
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 备份与日志
+*.bak
+*.bak.*
+*.backup
+*.log
+*.tmp
+uvicorn.log

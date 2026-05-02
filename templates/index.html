@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon-options.svg?v=4">
+    <link href="/static/vendor/fonts/inter.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css?v=23">
+    <script src="/static/vendor/plotly-2.35.2.min.js"></script>
+    <script src="/static/vendor/tsparticles.engine.min.js"></script>
+    <script src="/static/vendor/tsparticles.slim.bundle.min.js"></script>
+</head>
+<body>
+    <script>if(localStorage.getItem('dmr-dark-mode')==='true')document.body.classList.add('dark-mode');</script>
+    <script>{var v=localStorage.getItem('opt-ideal-mode');if(v===null||v==='true')document.body.classList.add('ideal-mode');}</script>
+    <div id="breathing-bg"></div>
+    <div id="particles-bg"></div>
+
+    <!-- Loader:三段叙事 short put(K_put,左) → long call(K_call,右) → 合成对角线 + 光晕。Call X > Put X 形成交错 -->
+    <div id="dmr-loader" class="dmr-loader opt-loader-shell">
+        <div id="loader-particles" class="loader-particles"></div>
+        <div class="dmr-loader__content opt-loader-inner">
+            <svg class="opt-loader-svg" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                <!-- 光晕(16px 红,合成对角线下层) -->
+                <path class="opt-loader-glow"
+                      d="M 10 120 L 110 20"
+                      stroke="#A0403C" stroke-width="16" fill="none" stroke-linecap="round"/>
+                <!-- short put:红色,行权价 K_put ≈ 45(偏左),斜上 → 平段贴零线上方 -->
+                <path class="opt-loader-leg opt-loader-leg-put"
+                      d="M 10 122 L 45 65 L 110 65"
+                      stroke="#A0403C" stroke-width="4" fill="none"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- long call:蓝色,行权价 K_call ≈ 78(偏右),平段贴零线下方 → 折点向右上 -->
+                <path class="opt-loader-leg opt-loader-leg-call"
+                      d="M 10 88 L 78 88 L 110 26"
+                      stroke="#3D5A80" stroke-width="4" fill="none"
+                      stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- 合成对角线:红实线穿过两个折点附近 -->
+                <path class="opt-loader-combined"
+                      d="M 10 120 L 110 20"
+                      stroke="#A0403C" stroke-width="3.6" fill="none" stroke-linecap="round"/>
+                <text class="opt-loader-brand" x="60" y="135" text-anchor="middle">Options</text>
+            </svg>
+            <p class="dmr-loader-tagline">欢迎使用 · 数据加载中</p>
+        </div>
+    </div>
+
+    <!-- 汉堡菜单 -->
+    <button id="sidebar-toggle" onclick="toggleSidebar()" aria-label="菜单">
+        <span class="bar"></span>
+        <span class="bar"></span>
+        <span class="bar"></span>
+    </button>
+
+    <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
+    <!-- 侧栏 -->
+    <aside id="sidebar">
+        <div class="sidebar-header">
+            <svg class="sidebar-logo" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+                <!-- 侧栏小 logo:Call X > Put X 交错布局 + 合成对角线 -->
+                <path d="M 10 105 L 110 15" stroke="#C0625F" stroke-width="14" fill="none" stroke-linecap="round" opacity="0.10"/>
+                <!-- short put(红,K_put≈45,左):斜上 → 平段 -->
+                <path d="M 10 105 L 45 55 L 110 55" stroke="#C0625F" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.6"/>
+                <!-- long call(蓝,K_call≈78,右):平段 → 斜上 -->
+                <path d="M 10 75 L 78 75 L 110 18" stroke="#3D5A80" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="sidebar-title">Options</span>
+        </div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">市场参数</div>
+            <label class="param-label"><span class="pl-name">标的现价 S<sub>0</sub></span><span class="param-value" id="v-S0">100</span></label>
+            <input type="number" id="m-S0" value="100" min="0.01" step="any" class="sidebar-input">
+
+            <label class="param-label"><span class="pl-name">到期时间 (年)</span><span class="param-value" id="v-T">0.50</span></label>
+            <input type="number" id="m-T" value="0.5" min="0" max="5" step="0.05" class="sidebar-input">
+
+            <label class="param-label dim-when-ideal"><span class="pl-name">无风险利率 r</span><span class="param-value" id="v-r">3.00%</span></label>
+            <input type="range" id="m-r" min="-2" max="15" step="0.25" value="3">
+
+            <label class="param-label dim-when-ideal"><span class="pl-name">股息率 q</span><span class="param-value" id="v-q">0.00%</span></label>
+            <input type="range" id="m-q" min="0" max="10" step="0.25" value="0">
+
+            <label class="param-label"><span class="pl-name">隐含波动率 σ</span><span class="param-value" id="v-sigma">25.0%</span></label>
+            <input type="range" id="m-sigma" min="2" max="200" step="1" value="25">
+
+            <label class="checkbox-label" style="margin-top: 4px;" title="开启后无风险利率 r 与股息率 q 视作 0,教科书首讲期权时的常见简化;σ 仍正常参与 BS 计价(否则期权全部归于内在价值,后续希腊值、时间切片等分析失去意义)">
+                <span class="toggle-switch"><input type="checkbox" id="ideal-mode-toggle"><span class="toggle-slider"></span></span>
+                无贴现模式 (r = q = 0)
+            </label>
+            <p class="param-hint" id="ideal-mode-hint">忽略贴现项,σ 仍正常生效</p>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <!-- 预设策略:按分类折叠,默认全部收起 -->
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">预设策略</div>
+        </div>
+        <div class="sidebar-details" data-preset-cat="directional">
+            <div class="sidebar-summary" onclick="event.stopPropagation();this.parentElement.classList.toggle('open');return false">方向性</div>
+            <div class="details-content preset-list" id="preset-list-directional"></div>
+        </div>
+        <div class="sidebar-details" data-preset-cat="vol">
+            <div class="sidebar-summary" onclick="event.stopPropagation();this.parentElement.classList.toggle('open');return false">波动率多空</div>
+            <div class="details-content preset-list" id="preset-list-vol"></div>
+        </div>
+        <div class="sidebar-details" data-preset-cat="neutral">
+            <div class="sidebar-summary" onclick="event.stopPropagation();this.parentElement.classList.toggle('open');return false">区间中性</div>
+            <div class="details-content preset-list" id="preset-list-neutral"></div>
+        </div>
+        <div class="sidebar-details" data-preset-cat="spot_combo">
+            <div class="sidebar-summary" onclick="event.stopPropagation();this.parentElement.classList.toggle('open');return false">组合现货</div>
+            <div class="details-content preset-list" id="preset-list-spot_combo"></div>
+        </div>
+        <div class="sidebar-details" data-preset-cat="synthetic">
+            <div class="sidebar-summary" onclick="event.stopPropagation();this.parentElement.classList.toggle('open');return false">合成与套利</div>
+            <div class="details-content preset-list" id="preset-list-synthetic"></div>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">我的策略</div>
+            <button class="sidebar-btn" onclick="openSaveDialog()">保存当前组合</button>
+            <ul class="strategy-list" id="strategy-list" style="margin-top:10px;">
+                <li class="empty">加载中…</li>
+            </ul>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="sidebar-section">
+            <div class="sidebar-section-title">显示设置</div>
+            <label class="checkbox-label">
+                <span class="toggle-switch"><input type="checkbox" id="dark-mode-toggle"><span class="toggle-slider"></span></span>
+                深色模式
+            </label>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="sidebar-details">
+            <div class="sidebar-summary" onclick="event.stopPropagation();this.parentElement.classList.toggle('open');return false">关于本工具</div>
+            <div class="details-content dev-letter">
+                <p>人生里反复出现的几个词:interest、option、future。在日常英语里这是兴趣、选择、未来;放回金融语境,对应的恰好是利息、期权、远期合约。三类合约中,期权是最棘手的一类。</p>
+
+                <p>期权这种工具,把"权利"和"义务"分开计价。同样看涨一个标的,买入看涨期权、卖出看跌期权、直接持有现货,三种做法的损益结构会显著不同;若再叠加多腿组合,复杂度还要再上一个台阶。把不同结构画在同一张图上做对比,通常比直接读公式直观。</p>
+
+                <p>这个工具的初衷,就是把期权组合配置的可视化做得清楚一些,方便金融工程或金融衍生品方向的设计与学习。在侧栏设定市场参数,第一页用 Call、Put、现货、远期任意搭配组合,即可实时观察到期 P&L、时间切片、希腊值随标的价格的变化,以及组合损益在 (S, T) 平面上的三维曲面。预设栏整理了 19 套常见组合(牛熊价差、跨式、铁鹰式、备兑、合成多空 等),可作为起点直接套用,再自行调整腿、观察曲线如何变化。</p>
+
+                <p>定价采用 Black-Scholes 标准框架:欧式权利、连续复利、无摩擦市场。这与实盘存在距离,保证金、滑点、流动性、波动率微笑、美式提前行权等因素均未纳入模型;但若仅用于把握"组合的整体形态,以及希腊值在哪些区间反应剧烈",这套框架已经够用。</p>
+
+                <p>登录后可将搭好的组合保存至云端,下次进入即可直接加载。未登录时仍可使用全部计算功能,只是组合无法保存。项目源代码已开源在 <a href="https://github.com/ykkai-w/Options" target="_blank" rel="noopener" style="color:var(--secondary);">GitHub ↗</a>,有兴趣可以 fork 一份自行调整。</p>
+
+                <p>主站是 <a href="https://dmrml.cn" target="_blank" rel="noopener" style="color:var(--secondary);">dmrml.cn ↗</a>,跑的是另一套 ML + 双重动量轮动的择时工具,欢迎一并看看。两个站均出自同一作者,如果有意交流学习,可邮件联系:<a href="mailto:ykai.w@outlook.com" style="color:var(--secondary);">ykai.w@outlook.com</a>。</p>
+
+                <p>最后再回到 Options 这个名字。开头说过,它在日常英语里是"选择";期权这件工具在金融语境里的本质,是用合理的代价,把握住将来的某种可能性。放回生活,何尝不是同样的事。希望这个工具,能帮你在金融视角下,把一些选择看得更清楚一点点。</p>
+            </div>
+        </div>
+
+        <div class="sidebar-footer">
+            <p><strong>options.dmrml.cn</strong></p>
+            <p>&copy; 2026 ykkai-w</p>
+        </div>
+    </aside>
+
+    <!-- 顶部 -->
+    <header id="global-header">
+        <div class="gh-left">
+            <div class="gh-title-block">
+                <div class="gh-title-row">
+                    <h1 class="site-title">Options</h1>
+                </div>
+                <p class="site-subtitle">期权策略可视化</p>
+            </div>
+        </div>
+        <div class="gh-right">
+            <a href="https://dmrml.cn" target="_blank" class="gh-toplink">主站 ↗</a>
+            <div id="auth-area">
+                {% if user %}
+                <div class="topbar-user">
+                    <span>{{ user.display_name }}</span>
+                    <button class="btn-textlink" onclick="logout()">登出</button>
+                </div>
+                {% else %}
+                <div class="topbar-anon">
+                    <button class="btn-textlink" onclick="openAuth('login')">登录</button>
+                    <button class="btn-textlink primary" onclick="openAuth('register')">注册</button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容(滚动吸附) -->
+    <main id="main-content">
+
+        <!-- Section 01: 策略组合 + 主图(到期 P&L) -->
+        <section class="content-section" id="section-builder">
+            <div class="section-eyebrow">
+                <span class="section-marker">01</span>
+                <span class="section-label">策略组合</span>
+            </div>
+
+            <div class="legs-toolbar">
+                <button class="tool-btn" onclick="addLeg('call')">+ Call</button>
+                <button class="tool-btn" onclick="addLeg('put')">+ Put</button>
+                <button class="tool-btn" onclick="addLeg('underlying')">+ 现货</button>
+                <button class="tool-btn" onclick="addLeg('forward')">+ 远期</button>
+                <span class="toolbar-sep"></span>
+                <button class="tool-btn danger" onclick="clearLegs()">清空</button>
+            </div>
+            <div class="legs-strip" id="legs-strip"></div>
+            <div class="chart-container builder-chart">
+                <div id="chart-expiry" class="chart-box"></div>
+            </div>
+
+            <div class="scroll-hint" id="scroll-hint">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </div>
+        </section>
+
+        <!-- Section 02: 关键指标 -->
+        <section class="content-section" id="section-metrics">
+            <div class="section-eyebrow">
+                <span class="section-marker">02</span>
+                <span class="section-label">关键指标</span>
+            </div>
+
+            <!-- 三张 hero 大卡:损益边界 -->
+            <div class="metric-row-title"><span class="mrt-num">i</span><span class="mrt-text">损益边界</span><span class="mrt-hint">组合在极端行情下能走到哪里</span></div>
+            <div class="metrics-hero" id="metrics-hero"></div>
+
+            <!-- 五张希腊字母 tile:风险敏感度 -->
+            <div class="metric-row-title"><span class="mrt-num">ii</span><span class="mrt-text">风险敏感度</span><span class="mrt-hint">对市场各项参数变化的瞬时反应</span></div>
+            <div class="metrics-greeks" id="metrics-greeks"></div>
+
+            <!-- 底部:左侧两张次要卡 + 右侧教学卡 -->
+            <div class="metric-row-title"><span class="mrt-num">iii</span><span class="mrt-text">情景与说明</span><span class="mrt-hint">可能的回报落点与策略画像</span></div>
+            <div class="metrics-bottom">
+                <div class="metrics-bottom-left" id="metrics-bottom-left"></div>
+                <div class="edu-card" id="edu-card" style="display:none;">
+                    <div class="edu-title" id="edu-title"></div>
+                    <div id="edu-body"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 03: 希腊值(从原 04 调过来,放在切片之前更靠近 02 关键指标) -->
+        <section class="content-section" id="section-greeks">
+            <div class="section-eyebrow">
+                <span class="section-marker">03</span>
+                <span class="section-label">希腊值</span>
+            </div>
+
+            <div class="greeks-grid">
+                <div class="greek-cell"><div id="greek-delta" class="greek-chart"></div></div>
+                <div class="greek-cell"><div id="greek-gamma" class="greek-chart"></div></div>
+                <div class="greek-cell"><div id="greek-vega"  class="greek-chart"></div></div>
+                <div class="greek-cell"><div id="greek-theta" class="greek-chart"></div></div>
+                <div class="greek-cell"><div id="greek-rho"   class="greek-chart"></div></div>
+                <div class="greek-cell greek-summary" id="greek-summary"></div>
+            </div>
+        </section>
+
+        <!-- Section 04: 时间切片(从原 03 调过来) -->
+        <section class="content-section" id="section-slices">
+            <div class="section-eyebrow">
+                <span class="section-marker">04</span>
+                <span class="section-label">时间切片</span>
+            </div>
+
+            <div class="chart-container">
+                <div id="chart-slices" class="chart-box"></div>
+            </div>
+        </section>
+
+        <!-- Section 05: 3D 曲面 -->
+        <section class="content-section" id="section-surface">
+            <div class="section-eyebrow">
+                <span class="section-marker">05</span>
+                <span class="section-label">三维曲面</span>
+            </div>
+
+            <div class="chart-container">
+                <div id="chart-surface" class="chart-box"></div>
+            </div>
+
+            <footer class="site-footer">
+                <p>本工具基于 Black-Scholes 模型计算,假设欧式权利、连续复利、无摩擦市场,仅供学习研究使用。</p>
+                <p>options.dmrml.cn | &copy; 2026 ykkai-w</p>
+            </footer>
+        </section>
+
+    </main>
+
+    <!-- 右侧点线导航(顺序与 section 一致:builder → metrics → greeks → slices → surface) -->
+    <nav id="dot-nav">
+        <a class="dot-item active" data-section="section-builder">
+            <span class="dot-label">策略组合</span>
+            <span class="dot"></span>
+        </a>
+        <div class="dot-connector"></div>
+        <a class="dot-item" data-section="section-metrics">
+            <span class="dot-label">关键指标</span>
+            <span class="dot"></span>
+        </a>
+        <div class="dot-connector"></div>
+        <a class="dot-item" data-section="section-greeks">
+            <span class="dot-label">希腊值</span>
+            <span class="dot"></span>
+        </a>
+        <div class="dot-connector"></div>
+        <a class="dot-item" data-section="section-slices">
+            <span class="dot-label">时间切片</span>
+            <span class="dot"></span>
+        </a>
+        <div class="dot-connector"></div>
+        <a class="dot-item" data-section="section-surface">
+            <span class="dot-label">三维曲面</span>
+            <span class="dot"></span>
+        </a>
+    </nav>
+
+    <div id="toast-host"></div>
+
+    <!-- 登录 / 注册模态框 -->
+    <div id="auth-modal" class="opt-modal" style="display:none;">
+        <div class="opt-modal-card">
+            <button class="opt-modal-close" onclick="closeAuth()">×</button>
+            <div class="opt-modal-tabs">
+                <button class="opt-modal-tab active" data-mode="login" onclick="switchAuthTab('login')">登录</button>
+                <button class="opt-modal-tab" data-mode="register" onclick="switchAuthTab('register')">注册</button>
+            </div>
+            <div class="opt-modal-error" id="auth-modal-error"></div>
+            <form id="auth-modal-form" class="auth-form" novalidate>
+                <div class="opt-input-row" id="row-display-name" style="display:none;">
+                    <label>显示名称(可选)</label>
+                    <div class="name-input-group">
+                        <input type="text" name="display_name" maxlength="40" placeholder="例:好奇的高斯">
+                        <button type="button" class="dice-btn" onclick="rollRandomName()" title="随机生成一个名字" aria-label="随机生成名字">🎲</button>
+                    </div>
+                </div>
+                <div class="opt-input-row">
+                    <label>邮箱</label>
+                    <input type="email" name="email" required autocomplete="email" placeholder="you@example.com">
+                </div>
+                <div class="opt-input-row">
+                    <label>密码</label>
+                    <input type="password" name="password" minlength="8" maxlength="128" required
+                           autocomplete="current-password" placeholder="至少 8 位">
+                </div>
+                <button type="submit" class="sidebar-btn" id="auth-modal-submit" style="width:100%;margin-top:6px;">登录</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 保存对话框 -->
+    <div id="save-dialog" class="opt-modal" style="display:none;">
+        <div class="opt-modal-card">
+            <button class="opt-modal-close" onclick="closeSaveDialog()">×</button>
+            <div class="opt-modal-title">保存策略</div>
+            <div class="opt-input-row">
+                <label>名称</label>
+                <input type="text" id="save-name" placeholder="沪深 300 牛市价差" maxlength="120">
+            </div>
+            <div class="opt-input-row">
+                <label>说明(可选)</label>
+                <input type="text" id="save-desc" maxlength="600" placeholder="市场观点 / 备注">
+            </div>
+            <div style="display:flex; gap:8px; margin-top:12px;">
+                <button class="sidebar-btn ghost" onclick="closeSaveDialog()" style="flex:1;">取消</button>
+                <button class="sidebar-btn" onclick="confirmSaveStrategy()" style="flex:1;">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    window.OPT_USER = {% if user %}{{ {'id': user.id, 'email': user.email, 'display_name': user.display_name} | tojson }}{% else %}null{% endif %};
+    </script>
+    <script src="/static/js/app.js?v=21"></script>
+
+    <!-- Loader API:套主站时序 6s -->
+    <script>
+    window.DMRLoader = (function () {
+        const ANIMATION_DURATION = 6000;
+        let _animationDone = false, _dataReady = false, _el = null, _tagline = null;
+        function _tryDismiss() {
+            if (_animationDone && _dataReady && _el) {
+                _el.classList.add('hidden');
+            }
+        }
+        return {
+            show: function (tagText) {
+                _animationDone = false; _dataReady = false;
+                _el = document.getElementById('dmr-loader');
+                if (!_el) return;
+                _tagline = _el.querySelector('.dmr-loader-tagline');
+                if (_tagline && tagText) _tagline.textContent = tagText;
+                _el.classList.remove('hidden', 'holding', 'playing');
+                requestAnimationFrame(() => _el.classList.add('playing'));
+                if (typeof tsParticles !== 'undefined') {
+                    tsParticles.load('loader-particles', {
+                        particles: {
+                            number: { value: 52, density: { enable: true, area: 800 } },
+                            color: { value: ['#A0403C', '#3D5A80', '#B8B2A8'] },
+                            opacity: { value: 0.18, random: { enable: true, minimumValue: 0.05 } },
+                            size: { value: 2.4, random: { enable: true, minimumValue: 0.8 } },
+                            move: { enable: true, speed: 0.6, direction: 'none', random: true, outModes: { default: 'out' } },
+                            links: { enable: true, distance: 150, color: '#B8B2A8', opacity: 0.12, width: 0.8 },
+                        },
+                        interactivity: {
+                            events: { onHover: { enable: true, mode: 'grab' } },
+                            modes: { grab: { distance: 180, links: { opacity: 0.3 } } },
+                        },
+                        detectRetina: true,
+                    });
+                }
+                setTimeout(() => {
+                    _animationDone = true;
+                    if (!_dataReady && _el) { _el.classList.remove('playing'); _el.classList.add('holding'); }
+                    _tryDismiss();
+                }, ANIMATION_DURATION);
+            },
+            dataReady: function () { _dataReady = true; _tryDismiss(); }
+        };
+    })();
+    </script>
+</body>
+</html>

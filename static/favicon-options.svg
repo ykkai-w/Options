@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 圆角白底,跟主站 favicon 同款(rx 比例 26/120 → 14/64) -->
+  <rect width="64" height="64" rx="14" fill="#FAFAF7"/>
+  <!-- 光晕 -->
+  <path d="M 6 54 L 58 10" stroke="#A0403C" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.14"/>
+  <!-- short put (红, K_put≈22 偏左):斜上 → 平段 -->
+  <path d="M 6 56 L 22 30 L 58 30" stroke="#A0403C" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- long call (蓝, K_call≈42 偏右):平段 → 斜上 -->
+  <path d="M 6 42 L 42 42 L 58 14" stroke="#3D5A80" stroke-width="3.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 合成对角线 -->
+  <path d="M 6 54 L 58 10" stroke="#A0403C" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+</svg>

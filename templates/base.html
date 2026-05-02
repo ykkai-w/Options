@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}期权策略可视化 · options.dmrml.cn{% endblock %}</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <link rel="stylesheet" href="/static/css/style.css?v=1">
+    <script src="/static/vendor/plotly-2.35.2.min.js"></script>
+    <script src="/static/vendor/tsparticles.engine.min.js"></script>
+    <script src="/static/vendor/tsparticles.slim.bundle.min.js"></script>
+</head>
+<body>
+<script>
+    // 应用深色模式偏好(放在 body 顶部以避免闪屏)
+    if (localStorage.getItem('opt-dark-mode') === 'true') {
+        document.body.classList.add('dark-mode');
+    }
+</script>
+
+<div id="breathing-bg"></div>
+<div id="particles-bg"></div>
+
+<div id="toast-host"></div>
+
+{% block body %}{% endblock %}
+
+<script>
+    // 粒子初始化(对齐主站:带连线的疏粒子网络)
+    function initParticles() {
+        if (!window.tsParticles) return;
+        const dark = document.body.classList.contains('dark-mode');
+        const particleColor = dark ? '#A89F92' : '#6F665B';
+        const linkColor     = dark ? '#A89F92' : '#8B8680';
+        tsParticles.load('particles-bg', {
+            background: { color: 'transparent' },
+            fpsLimit: 60,
+            particles: {
+                number: { value: 50, density: { enable: true, area: 900 } },
+                color: { value: particleColor },
+                opacity: { value: { min: 0.10, max: 0.32 } },
+                size: { value: { min: 1, max: 2.4 } },
+                move: { enable: true, speed: 0.55, direction: 'none', outModes: 'out' },
+                links: {
+                    enable: true,
+                    distance: 130,
+                    color: linkColor,
+                    opacity: 0.22,
+                    width: 1,
+                },
+            },
+            interactivity: {
+                events: { onHover: { enable: true, mode: 'grab' } },
+                modes: { grab: { distance: 160, links: { opacity: 0.45 } } },
+            },
+            detectRetina: true,
+        }).catch(() => {});
+    }
+    initParticles();
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('opt-dark-mode', String(isDark));
+        if (window.onThemeChange) window.onThemeChange(isDark);
+    }
+    function showToast(msg, kind = '') {
+        const host = document.getElementById('toast-host');
+        if (!host) return;
+        const el = document.createElement('div');
+        el.className = 'toast ' + (kind || '');
+        el.textContent = msg;
+        host.appendChild(el);
+        setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.4s'; }, 2400);
+        setTimeout(() => el.remove(), 2900);
+    }
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
