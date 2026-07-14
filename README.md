@@ -2,7 +2,7 @@
 
 期权策略可视化小工具
 
-在线演示：[options.dmrml.cn](https://options.dmrml.cn)
+在线平台：[options.dmrml.cn](https://options.dmrml.cn)
 
 ---
 
@@ -138,4 +138,4 @@ MIT License. 见 [LICENSE](./LICENSE)。
 
 作者：Kai（CAU 金融学 & 数据科学 在读）
 联系：ykai.w@outlook.com
-主站：[dmrml.cn](https://dmrml.cn) —— DMR-ML 双重动量 + ML 风控的指数轮动策略
+主站：[dmrml.cn](https://dmrml.cn) —— DMR-ML
